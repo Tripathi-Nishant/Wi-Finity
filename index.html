@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wi-Finity Digital Twin - Wi-Fi CSI Motion Sensing</title>
+  <meta name="description" content="Interactive 3D digital twin demonstrating camera-free, wearable-free Wi-Fi CSI motion sensing, occupancy detection, and fall pattern recognition.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f0ff' stroke-width='2'%3E%3Cpath d='M5 12.55a11 11 0 0 1 14.08 0'/%3E%3Cpath d='M1.42 9a16 16 0 0 1 21.16 0'/%3E%3Cpath d='M8.53 16.11a6 6 0 0 1 6.95 0'/%3E%3Cline x1='12' y1='20' x2='12.01' y2='20'/%3E%3C/svg%3E">
+  
+  <!-- Import Map: resolves Three.js and addons to local offline vendor files -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/": "./vendor/addons/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+      </div>
+      <div class="brand-titles">
+        <div class="brand-name">
+          WI-FINITY <span class="brand-twin">DIGITAL TWIN</span>
+        </div>
+        <div class="brand-sub">Camera-Free Wi-Fi CSI Motion Sensing</div>
+      </div>
+    </div>
+
+    <!-- Permanent Non-Negotiable Honesty Badge -->
+    <div class="badge-honesty" id="permanent-simulation-badge" title="This software generates synthetic Channel State Information using multi-path physics. The detector is blind to ground truth.">
+      <span class="badge-dot"></span>
+      SIMULATION - synthetic Wi-Fi signal
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-nav" id="btn-guided-tour" title="Start 90-second automated presentation tour (Key: G)">
+        ▶ 90s Guided Tour
+      </button>
+      <button class="btn btn-nav" id="btn-presenter-mode" title="Toggle large-font presentation mode (Key: P)">
+        🖥️ Presenter [P]
+      </button>
+      <button class="btn btn-nav" id="btn-toggle-mute" title="Toggle audio alert chime">
+        🔊 Audio On
+      </button>
+      <button class="btn btn-nav" id="btn-fullscreen" title="Toggle Fullscreen (Key: F)">
+        ⛶ Fullscreen
+      </button>
+      <button class="btn btn-nav" id="btn-about-model" title="Physics model details and honesty specifications">
+        ℹ About Model
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dual-Pane Workspace -->
+  <main class="main-layout">
+    <!-- Left Pane: 3D Scene Viewport (60%) -->
+    <section class="viewport-section">
+      <div id="canvas-container"></div>
+
+      <!-- Floating 3D Scene Top Toolbar -->
+      <div class="scene-hud-top">
+        <div class="hud-group">
+          <span class="hud-label">Theme:</span>
+          <button class="btn-pill active" id="btn-theme-care">Care Ward</button>
+          <button class="btn-pill" id="btn-theme-office">Office</button>
+        </div>
+
+        <div class="hud-group">
+          <label class="hud-checkbox-label">
+            <input type="checkbox" id="toggle-wall-concrete">
+            <span>Concrete Wall (+18dB)</span>
+          </label>
+          <label class="hud-checkbox-label">
+            <input type="checkbox" id="toggle-curtain" checked>
+            <span>Curtain</span>
+          </label>
+          <label class="hud-checkbox-label">
+            <input type="checkbox" id="toggle-fresnel">
+            <span>Fresnel Zone</span>
+          </label>
+        </div>
+
+        <div class="hud-group camera-group">
+          <span class="hud-label">Cam:</span>
+          <button class="btn-icon" id="cam-preset-1" title="Top-down View (1)">[1] Top</button>
+          <button class="btn-icon active" id="cam-preset-2" title="Isometric View (2)">[2] Iso</button>
+          <button class="btn-icon" id="cam-preset-3" title="Free Orbit View (3)">[3] Free</button>
+        </div>
+      </div>
+
+      <!-- Floating 3D Scene Bottom Toolbar -->
+      <div class="scene-hud-bottom">
+        <div class="scenario-selector-bar">
+          <span class="hud-label">Scenario:</span>
+          <select id="select-scenario" class="select-styled">
+            <option value="walk">Person walks across room</option>
+            <option value="empty">Empty room (Calm baseline)</option>
+            <option value="sit">Person sits still (Presence test)</option>
+            <option value="fall">Possible fall pattern</option>
+            <option value="two_people">Two people moving (Multi-mover)</option>
+            <option value="behind_curtain">Person behind curtain partition</option>
+            <option value="concrete_wall">Concrete wall (Accuracy drop)</option>
+            <option value="heavy_interference">Heavy 2.4GHz interference</option>
+          </select>
+        </div>
+
+        <div class="person-action-bar">
+          <div class="person-management">
+            <button class="btn-sm" id="btn-add-person" title="Add another person (+)">+ Person</button>
+            <button class="btn-sm" id="btn-remove-person" title="Remove person (-)">- Person</button>
+          </div>
+          <div class="action-pills">
+            <button class="btn-action" id="action-stand">Stand</button>
+            <button class="btn-action" id="action-sit">Sit</button>
+            <button class="btn-action" id="action-walk">Walk</button>
+            <button class="btn-action" id="action-lie">Lie (Bed)</button>
+            <button class="btn-action btn-fall" id="action-fall">⚡ Fall</button>
+          </div>
+        </div>
+
+        <div class="replay-controls-bar">
+          <button class="btn-sm btn-rec" id="btn-record">● Record</button>
+          <button class="btn-sm" id="btn-replay">▶ Replay</button>
+          <button class="btn-sm" id="btn-export-recording" title="Export session data as JSON">Export</button>
+        </div>
+      </div>
+
+      <!-- Replay Banner -->
+      <div class="replay-banner" id="replay-status-banner">
+        <span class="badge-dot badge-dot-warn"></span>
+        REPLAY - Playing recorded session packets
+      </div>
+
+      <!-- Guided Tour Subtitle Overlay -->
+      <div class="tour-caption-overlay" id="tour-caption-overlay">
+        <div class="tour-caption-content">
+          <div class="tour-caption-tag">GUIDED DEMONSTRATION</div>
+          <div class="tour-caption-text" id="tour-caption-text">Welcome to Wi-Finity Digital Twin.</div>
+          <div class="tour-progress-track">
+            <div class="tour-progress-bar" id="tour-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drag Hint Overlay -->
+      <div class="drag-hint-badge">
+        💡 Tip: Click and drag any avatar with your mouse across the floor
+      </div>
+    </section>
+
+    <!-- Right Pane: Telemetry Dashboard (40%) -->
+    <aside class="dashboard-section">
+      <!-- Dashboard View Filter Tabs -->
+      <div class="dashboard-filter-bar">
+        <button class="dash-view-tab active" data-view="all">📊 All Panels</button>
+        <button class="dash-view-tab" data-view="overview">🎯 Radar & State</button>
+        <button class="dash-view-tab" data-view="signals">📈 RF Signals & Waterfall</button>
+      </div>
+
+      <!-- 1. Status Hero Card -->
+      <div class="dashboard-card hero-card state-empty" id="panel-hero-status" data-category="overview">
+        <div class="card-header-mini">
+          <span class="card-title-mini">SYSTEM STATE</span>
+          <span class="data-origin-tag">synthetic CSI</span>
+        </div>
+        <div class="hero-body">
+          <div class="hero-main-row">
+            <div class="state-indicator-dot"></div>
+            <div class="hero-state-title" id="hero-state-label">EMPTY</div>
+          </div>
+          <div class="hero-meta-row">
+            <div class="meta-item">
+              <span class="meta-label">Confidence:</span>
+              <span class="meta-val" id="hero-confidence">95%</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Estimated Zone:</span>
+              <span class="meta-val meta-zone" id="hero-zone">Zone --</span>
+            </div>
+          </div>
+          <div class="badge-multimover" id="hero-multimover-badge" style="display: none;">
+            ⚠️ Multiple movers likely
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Fall Alert Notification Banner & Simulated Phone Card (Shown on POSSIBLE_FALL) -->
+      <div class="fall-alert-banner" id="fall-alert-banner" data-category="overview">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <div class="alert-title">POSSIBLE FALL PATTERN DETECTED</div>
+          <div class="alert-desc">High motion burst followed by sustained stillness (>3s). Non-medical pattern indicator.</div>
+        </div>
+        <button class="btn-dismiss" id="btn-dismiss-alert">Dismiss</button>
+      </div>
+
+      <div class="simulated-phone-card" id="simulated-phone-card" data-category="overview">
+        <div class="phone-header">
+          <div class="phone-app-icon">📡</div>
+          <div class="phone-meta">
+            <span class="phone-app-name">Wi-Finity Alert</span>
+            <span class="phone-time" id="phone-alert-time">Just now</span>
+          </div>
+        </div>
+        <div class="phone-body">
+          <div class="phone-alert-headline">Possible Fall Pattern - Room 3, Zone <span id="phone-alert-zone">B2</span></div>
+          <div class="phone-alert-sub">Sustained stillness following sudden RF disturbance. Caregiver intervention recommended.</div>
+        </div>
+        <div class="phone-footer">
+          <span class="webhook-tag tag-local" id="webhook-status-badge">Alert Mode: Local Simulated</span>
+        </div>
+      </div>
+
+      <!-- 2. Top-Down Radar Map -->
+      <div class="dashboard-card" data-category="radar">
+        <div class="card-header">
+          <span class="card-title">3×3 RF RADAR & ZONE PROBABILITY</span>
+          <span class="data-origin-tag">cosine similarity</span>
+        </div>
+        <div class="card-body canvas-center">
+          <canvas id="canvas-radar" width="340" height="230"></canvas>
+        </div>
+      </div>
+
+      <!-- 3. Per-Link Waterfall Spectrogram -->
+      <div class="dashboard-card" data-category="waterfall">
+        <div class="card-header">
+          <div class="card-title-tabs">
+            <span class="card-title">CSI WATERFALL</span>
+            <div class="waterfall-tabs">
+              <button class="waterfall-tab active" data-link="RX1">RX1</button>
+              <button class="waterfall-tab" data-link="RX2">RX2</button>
+              <button class="waterfall-tab" data-link="RX3">RX3</button>
+              <button class="waterfall-tab" data-link="RX4" style="display: none;">RX4</button>
+            </div>
+          </div>
+          <span class="data-origin-tag">56 subcarriers × time</span>
+        </div>
+        <div class="card-body canvas-center">
+          <canvas id="canvas-waterfall" width="340" height="150"></canvas>
+        </div>
+      </div>
+
+      <!-- 4. Live Subcarrier Amplitude Spectrum -->
+      <div class="dashboard-card" data-category="spectrum">
+        <div class="card-header">
+          <span class="card-title">SUBCARRIER SPECTRUM (H(f))</span>
+          <span class="data-origin-tag">2.419 - 2.454 GHz</span>
+        </div>
+        <div class="card-body canvas-center">
+          <canvas id="canvas-spectrum" width="340" height="140"></canvas>
+        </div>
+      </div>
+
+      <!-- 5. Motion and Presence Timeline -->
+      <div class="dashboard-card" data-category="timeline">
+        <div class="card-header">
+          <span class="card-title">MOTION & PRESENCE TIMELINE</span>
+          <span class="data-origin-tag">Hampel + Sliding Std</span>
+        </div>
+        <div class="card-body canvas-center">
+          <canvas id="canvas-timeline" width="340" height="130"></canvas>
+        </div>
+      </div>
+
+      <!-- 6. Ground Truth vs Estimate (Strict Honesty Panel) -->
+      <div class="dashboard-card" data-category="gt">
+        <div class="card-header">
+          <span class="card-title">GROUND TRUTH VS DETECTOR ESTIMATE</span>
+          <span class="data-origin-tag">Strictly Blind</span>
+        </div>
+        <div class="card-body">
+          <div class="gt-compare-grid">
+            <div class="gt-column">
+              <div class="gt-col-title">GROUND TRUTH (3D Scene)</div>
+              <div class="gt-stat-row">
+                <span class="gt-lbl">People Count:</span>
+                <span class="gt-val" id="gt-people-count">1</span>
+              </div>
+              <div class="gt-stat-row">
+                <span class="gt-lbl">Actual Zone:</span>
+                <span class="gt-val gt-highlight" id="gt-zone">B2</span>
+              </div>
+              <div class="gt-stat-row">
+                <span class="gt-lbl">Activity:</span>
+                <span class="gt-val" id="gt-activity">WALKING</span>
+              </div>
+            </div>
+
+            <div class="est-column">
+              <div class="est-col-title">DETECTOR ESTIMATE (CSI Only)</div>
+              <div class="gt-stat-row">
+                <span class="gt-lbl">Estimated Zone:</span>
+                <span class="est-val est-highlight" id="est-zone">B2</span>
+              </div>
+              <div class="gt-stat-row">
+                <span class="gt-lbl">Estimated State:</span>
+                <span class="est-val" id="est-state">MOVING</span>
+              </div>
+              <div class="gt-stat-row">
+                <span class="gt-lbl">Match Status:</span>
+                <span class="status-tag tag-match" id="match-status-badge">MATCH</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="accuracy-tracker-row">
+            <span class="acc-label">Rolling Zone Accuracy (Last 60s):</span>
+            <span class="acc-val" id="accuracy-value">100%</span>
+          </div>
+          <div class="honesty-disclaimer-note">
+            ⚠️ The detector does NOT know person positions. When you enable the Concrete Wall or Interference, accuracy drops visibly.
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Controls & Calibration -->
+      <div class="dashboard-card" data-category="controls">
+        <div class="card-header">
+          <span class="card-title">SIGNAL CONTROLS & CALIBRATION</span>
+          <span class="data-origin-tag">RF Tuning</span>
+        </div>
+        <div class="card-body controls-grid">
+          <div class="control-row">
+            <label for="slider-noise">Thermal Noise Level:</label>
+            <input type="range" id="slider-noise" min="0.002" max="0.08" step="0.002" value="0.015">
+            <span class="control-val" id="val-noise">1.5%</span>
+          </div>
+
+          <div class="control-row">
+            <label for="slider-atten">Wall Attenuation:</label>
+            <input type="range" id="slider-atten" min="0" max="30" step="2" value="12">
+            <span class="control-val" id="val-atten">12 dB</span>
+          </div>
+
+          <div class="control-row-checkboxes">
+            <label class="hud-checkbox-label">
+              <input type="checkbox" id="toggle-interference">
+              <span>Bursty RF Interference (Jamming)</span>
+            </label>
+            <label class="hud-checkbox-label">
+              <input type="checkbox" id="toggle-rx4">
+              <span>Enable 4th Receiver (RX4)</span>
+            </label>
+          </div>
+
+          <div class="control-buttons-row">
+            <button class="btn btn-primary" id="btn-calibrate">Calibrate Empty Room</button>
+            <button class="btn btn-secondary" id="btn-survey">Run Site Survey</button>
+            <button class="btn btn-secondary" id="btn-reset">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Real-time Event Log -->
+      <div class="dashboard-card" data-category="controls">
+        <div class="card-header">
+          <span class="card-title">TELEMETRY EVENT LOG</span>
+          <span class="data-origin-tag">live stream</span>
+        </div>
+        <div class="card-body log-body">
+          <ul class="event-log-list" id="event-log-list"></ul>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Modal: About This Model / Honesty Specifications -->
+  <div class="modal-backdrop" id="modal-about-model">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">About Wi-Finity Digital Twin Model</div>
+        <button class="btn-close-modal" id="btn-close-about">✕</button>
+      </div>
+      <div class="modal-body">
+        <h4>1. Physics Simulation Engine</h4>
+        <p>
+          This application simulates 56 OFDM subcarrier amplitudes across a 2.437 GHz carrier (Wi-Fi Channel 6) with 312.5 kHz spacing.
+          The channel frequency response is modeled as:
+        </p>
+        <pre><code>H(f) = Σ (a_p / d_p) * exp(-j * 2π * f * d_p / c)</code></pre>
+        <p>
+          Multipath paths include the direct line-of-sight path, specular image-source reflections from the 4 walls, ceiling, and floor,
+          as well as dynamic human scatterers. Human motion shifts path length, creating constructive and destructive phase interference ripples.
+        </p>
+
+        <h4>2. Strict Blind Detector Honesty</h4>
+        <p>
+          The detector has zero access to ground truth. It receives only <code>Float32Array(56)</code> streams per link,
+          applying a Hampel outlier filter, sliding-window standard deviation for motion, baseline divergence for presence,
+          and cosine similarity against 3×3 zone survey fingerprints.
+        </p>
+
+        <h4>3. Non-Negotiable Honesty & Ethical Rules</h4>
+        <ul>
+          <li><strong>Simulation:</strong> Clearly labeled "SIMULATION - synthetic Wi-Fi signal" at all times.</li>
+          <li><strong>No Medical Claims:</strong> Evaluated strictly as a "possible fall pattern", never "fall detected".</li>
+          <li><strong>No Exact Counting:</strong> Only flags "Multiple movers likely" when multiple zones diverge.</li>
+          <li><strong>Hardware Extensibility:</strong> Real ESP32 or Linux 802.11n CSI packets can be streamed directly via the <code>WebSocketSource</code> interface.</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="document.getElementById('modal-about-model').classList.remove('visible')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main ES Module Bootstrap -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
